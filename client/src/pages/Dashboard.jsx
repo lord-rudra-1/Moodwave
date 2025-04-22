@@ -6,10 +6,11 @@ import useMood from '../utils/useMood';
 import MoodSelector from '../components/MoodSelector';
 import SongCard from '../components/SongCard';
 import MusicPlayer from '../components/MusicPlayer';
+import { FaMusic, FaPlus, FaTimesCircle } from 'react-icons/fa';
 
 const Dashboard = () => {
   const { isAuthenticated, user } = useAuth();
-  const { selectedMood } = useMood();
+  const { selectedMood, clearMood } = useMood();
   const navigate = useNavigate();
 
   const [songs, setSongs] = useState([]);
@@ -153,25 +154,57 @@ const Dashboard = () => {
   return (
     <div className="container mx-auto px-4 py-8 pb-32">
       {!selectedMood ? (
-        <MoodSelector onMoodSelected={() => { }} />
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <FaMusic className="mx-auto text-5xl text-indigo-500 mb-4" />
+            <h1 className="text-4xl font-bold text-gray-800 mb-3">Choose Your Mood</h1>
+            <p className="text-xl text-gray-600">Select a mood to discover songs that match how you feel</p>
+          </div>
+          <MoodSelector onMoodSelected={() => { }} />
+        </div>
       ) : (
         <>
-          <h1 className="text-3xl font-bold mb-6">
-            {selectedMood} Songs for You
-          </h1>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                {selectedMood} Songs
+              </span>
+              <span className="ml-2 text-gray-700">for You</span>
+            </h1>
+
+            <button
+              onClick={clearMood}
+              className="flex items-center text-gray-500 hover:text-indigo-600 transition px-3 py-1 rounded-full border border-gray-300 hover:border-indigo-400 text-sm"
+            >
+              <FaTimesCircle className="mr-1" />
+              <span>Change Mood</span>
+            </button>
+          </div>
 
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="flex flex-col justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+              <p className="text-gray-600">Loading your personalized playlist...</p>
             </div>
           ) : error ? (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
-              <p className="text-red-700">{error}</p>
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-lg shadow-sm">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <FaTimesCircle className="h-5 w-5 text-red-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-red-700">{error}</p>
+                </div>
+              </div>
             </div>
           ) : songs.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-xl text-gray-600">
+            <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+              <FaMusic className="mx-auto text-4xl text-gray-300 mb-4" />
+              <p className="text-xl text-gray-600 mb-2">
                 No songs found for this mood.
+              </p>
+              <p className="text-gray-500">
+                Try selecting a different mood or check back later.
               </p>
             </div>
           ) : (
@@ -201,44 +234,44 @@ const Dashboard = () => {
 
       {/* Playlist Modal */}
       {showPlaylistModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-bold mb-4">Add to Playlist</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-lg font-bold mb-4 text-gray-800">Add to Playlist</h3>
 
-            <div className="mb-4">
-              <div className="flex items-center mb-2">
+            <div className="mb-6">
+              <div className="flex items-center">
                 <input
                   type="text"
                   placeholder="Create new playlist"
                   value={newPlaylistName}
                   onChange={(e) => setNewPlaylistName(e.target.value)}
-                  className="flex-grow border p-2 rounded-l-md"
+                  className="flex-grow border border-gray-300 p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 <button
                   onClick={handleCreatePlaylist}
-                  className="bg-blue-500 text-white px-3 py-2 rounded-r-md"
+                  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-r-md hover:from-indigo-600 hover:to-purple-700 transition-colors"
                 >
-                  Create
+                  <FaPlus className="text-sm" />
                 </button>
               </div>
             </div>
 
             <div className="max-h-60 overflow-y-auto">
               {playlists.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
+                <p className="text-gray-500 text-center py-4 border-2 border-dashed border-gray-200 rounded-lg">
                   No playlists found. Create one above.
                 </p>
               ) : (
-                <ul className="divide-y">
+                <ul className="divide-y divide-gray-100">
                   {playlists.map((playlist) => (
                     <li key={playlist._id} className="py-2">
                       <button
                         onClick={() => handleAddToPlaylist(playlist._id)}
-                        className="w-full text-left hover:bg-gray-50 p-2 rounded"
+                        className="w-full text-left hover:bg-indigo-50 p-3 rounded-lg transition-colors flex justify-between items-center"
                       >
-                        {playlist.name}
+                        <span className="font-medium">{playlist.name}</span>
                         {playlist.moodTag && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
                             {playlist.moodTag}
                           </span>
                         )}
@@ -249,13 +282,10 @@ const Dashboard = () => {
               )}
             </div>
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-6 flex justify-end">
               <button
-                onClick={() => {
-                  setShowPlaylistModal(false);
-                  setSongToAddToPlaylist(null);
-                }}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                onClick={() => setShowPlaylistModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>

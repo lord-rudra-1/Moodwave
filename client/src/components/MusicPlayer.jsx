@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { FaPlay, FaPause, FaForward, FaBackward, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import { FaPlay, FaPause, FaForward, FaBackward, FaVolumeUp, FaVolumeMute, FaMusic } from 'react-icons/fa';
 import axios from 'axios';
 
 const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
@@ -162,72 +162,105 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
     return null;
   }
 
+  // Calculate progress percentage for the custom progress bar
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-indigo-900 to-purple-900 text-white p-4 shadow-xl backdrop-blur-lg border-t border-indigo-800/50 z-50">
       <div className="container mx-auto">
         {audioError && (
-          <div className="bg-red-500 text-white p-2 mb-2 rounded text-sm text-center">
+          <div className="bg-red-500/90 backdrop-blur-sm text-white p-2 mb-2 rounded-lg text-sm text-center">
             {audioError}
           </div>
         )}
 
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center mb-3 md:mb-0">
-            <div className="mr-4">
-              <h3 className="font-semibold">{currentSong.title}</h3>
-              <p className="text-gray-400 text-sm">{currentSong.artist}</p>
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg overflow-hidden flex items-center justify-center mr-3 shadow-lg">
+              {currentSong.coverImage ? (
+                <img
+                  src={`/covers/${currentSong.coverImage}`}
+                  alt={currentSong.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/covers/default-cover.jpg';
+                  }}
+                />
+              ) : (
+                <FaMusic className="text-white/70 text-xl" />
+              )}
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">{currentSong.title}</h3>
+              <p className="text-indigo-200 text-xs">{currentSong.artist}</p>
             </div>
           </div>
 
           <div className="flex-grow max-w-2xl mx-4">
-            <div className="flex justify-center items-center space-x-4">
+            <div className="flex justify-center items-center space-x-6">
               <button
                 onClick={onPrevSong}
-                className="text-gray-400 hover:text-white transition"
+                className="text-indigo-200 hover:text-white transition-colors"
               >
-                <FaBackward />
+                <FaBackward className="text-lg" />
               </button>
               <button
                 onClick={handlePlayPause}
-                className="bg-white text-gray-900 p-3 rounded-full hover:bg-gray-200 transition"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-4 rounded-full hover:from-indigo-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-purple-500/20 transform hover:scale-105"
               >
-                {isPlaying ? <FaPause /> : <FaPlay />}
+                {isPlaying ? <FaPause className="text-lg" /> : <FaPlay className="text-lg ml-0.5" />}
               </button>
               <button
                 onClick={onNextSong}
-                className="text-gray-400 hover:text-white transition"
+                className="text-indigo-200 hover:text-white transition-colors"
               >
-                <FaForward />
+                <FaForward className="text-lg" />
               </button>
             </div>
 
-            <div className="flex items-center mt-2">
-              <span className="text-xs mr-2">{formatTime(currentTime)}</span>
-              <input
-                type="range"
-                min="0"
-                max={duration || 0}
-                value={currentTime}
-                onChange={handleSeek}
-                className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-xs ml-2">{formatTime(duration)}</span>
+            <div className="flex items-center mt-3">
+              <span className="text-xs mr-2 text-indigo-200 w-8 text-right">{formatTime(currentTime)}</span>
+              <div className="w-full h-2 bg-indigo-800/50 rounded-full overflow-hidden relative">
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </div>
+              <span className="text-xs ml-2 text-indigo-200 w-8">{formatTime(duration)}</span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 mt-2 md:mt-0">
-            <button onClick={handleMuteToggle}>
-              {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+          <div className="flex items-center space-x-3 mt-2 md:mt-0">
+            <button
+              onClick={handleMuteToggle}
+              className="text-indigo-200 hover:text-white transition-colors"
+            >
+              {isMuted ? <FaVolumeMute className="text-lg" /> : <FaVolumeUp className="text-lg" />}
             </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-            />
+            <div className="w-24 h-2 bg-indigo-800/50 rounded-full overflow-hidden relative">
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full"
+                style={{ width: `${isMuted ? 0 : volume * 100}%` }}
+              ></div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </div>
           </div>
         </div>
       </div>

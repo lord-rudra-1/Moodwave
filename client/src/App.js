@@ -14,7 +14,7 @@ function App() {
     <AuthProvider>
       <MoodProvider>
         <Router>
-          <div className="flex flex-col min-h-screen bg-gray-100">
+          <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
             <Header />
             <main className="flex-grow">
               <Routes>
@@ -26,6 +26,9 @@ function App() {
                 <Route path="/history" element={<History />} />
               </Routes>
             </main>
+            <footer className="py-4 text-center text-sm text-gray-500 border-t border-gray-200">
+              <p>© {new Date().getFullYear()} MoodWave. All rights reserved.</p>
+            </footer>
           </div>
         </Router>
       </MoodProvider>
