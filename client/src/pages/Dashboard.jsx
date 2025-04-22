@@ -6,6 +6,7 @@ import useMood from '../utils/useMood';
 import MoodSelector from '../components/MoodSelector';
 import SongCard from '../components/SongCard';
 import MusicPlayer from '../components/MusicPlayer';
+import CommentsDialog from '../components/CommentsDialog';
 import { FaMusic, FaPlus, FaTimesCircle } from 'react-icons/fa';
 
 const Dashboard = () => {
@@ -22,6 +23,10 @@ const Dashboard = () => {
   const [songToAddToPlaylist, setSongToAddToPlaylist] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+
+  // Comments dialog state
+  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
+  const [commentsSong, setCommentsSong] = useState(null);
 
   // Fetch songs based on selected mood
   useEffect(() => {
@@ -103,6 +108,11 @@ const Dashboard = () => {
   const handleOpenPlaylistModal = (song) => {
     setSongToAddToPlaylist(song);
     setShowPlaylistModal(true);
+  };
+
+  const handleOpenComments = (song) => {
+    setCommentsSong(song);
+    setShowCommentsDialog(true);
   };
 
   const handleAddToPlaylist = async (playlistId) => {
@@ -216,6 +226,7 @@ const Dashboard = () => {
                   onPlay={handlePlaySong}
                   isPlaying={selectedSongId === song._id}
                   onPlaylistAdd={handleOpenPlaylistModal}
+                  onOpenComments={handleOpenComments}
                   refreshSongs={refreshSongs}
                 />
               ))}
@@ -229,6 +240,16 @@ const Dashboard = () => {
           currentSong={currentSong}
           onNextSong={handleNextSong}
           onPrevSong={handlePrevSong}
+        />
+      )}
+
+      {/* Comments Dialog */}
+      {showCommentsDialog && commentsSong && (
+        <CommentsDialog
+          isOpen={showCommentsDialog}
+          onClose={() => setShowCommentsDialog(false)}
+          songId={commentsSong._id}
+          songTitle={commentsSong.title}
         />
       )}
 

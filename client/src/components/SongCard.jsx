@@ -3,13 +3,11 @@ import { FaPlay, FaPause, FaPlus, FaComment } from 'react-icons/fa';
 import axios from 'axios';
 import useAuth from '../utils/useAuth';
 import SongDialog from './SongDialog';
-import CommentsDialog from './CommentsDialog';
 import RatingStars from './RatingStars';
 
-const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
+const SongCard = ({ song, onPlay, isPlaying, refreshSongs, onOpenComments }) => {
   const { isAuthenticated } = useAuth();
   const [showPlaylistDialog, setShowPlaylistDialog] = useState(false);
-  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   const handlePlaybackRecord = async () => {
@@ -32,7 +30,7 @@ const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
   };
 
   const handleOpenComments = () => {
-    setShowCommentsDialog(true);
+    onOpenComments(song);
   };
 
   return (
@@ -108,14 +106,6 @@ const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
         isOpen={showPlaylistDialog}
         onClose={() => setShowPlaylistDialog(false)}
         songId={song._id}
-      />
-
-      {/* Comments Dialog */}
-      <CommentsDialog
-        isOpen={showCommentsDialog}
-        onClose={() => setShowCommentsDialog(false)}
-        songId={song._id}
-        songTitle={song.title}
       />
     </div>
   );
