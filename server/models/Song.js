@@ -26,6 +26,10 @@ const songSchema = new mongoose.Schema({
   duration: {
     type: Number
   },
+  coverImage: {
+    type: String,
+    default: 'default-cover.jpg'
+  },
   uploadedAt: {
     type: Date,
     default: Date.now
