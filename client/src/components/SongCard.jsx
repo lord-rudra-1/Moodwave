@@ -30,7 +30,7 @@ const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
     if (!isAuthenticated) return;
 
     try {
-      await axios.post(`/api/songs/${song._id}/play`);
+      await axios.post(`/songs/${song._id}/play`);
     } catch (error) {
       console.error('Error recording playback:', error);
     }

@@ -27,10 +27,13 @@ const History = () => {
   const fetchHistory = async () => {
     try {
       setLoading(true);
+      console.log('Fetching playback history...');
       const { data } = await axios.get('/api/history');
+      console.log('Playback history received:', data);
       setHistory(data);
       setError(null);
     } catch (err) {
+      console.error('Error fetching history:', err);
       setError('Failed to fetch playback history. Please try again.');
       setHistory([]);
     } finally {
@@ -65,11 +68,14 @@ const History = () => {
     try {
       await axios.delete(`/api/history/${id}`);
       setHistory(history.filter(item => item._id !== id));
-      
+
       // If this was the current playing song, stop playing
-      if (currentSong && history.find(item => item._id === id && item.songId._id === currentSong._id)) {
-        setCurrentSong(null);
-        setSelectedSongId(null);
+      if (currentSong && selectedSongId) {
+        const deletedEntry = history.find(item => item._id === id);
+        if (deletedEntry && deletedEntry.songId._id === selectedSongId) {
+          setCurrentSong(null);
+          setSelectedSongId(null);
+        }
       }
     } catch (error) {
       console.error('Error deleting history item:', error);
@@ -80,7 +86,7 @@ const History = () => {
     if (!window.confirm('Are you sure you want to clear your entire playback history?')) {
       return;
     }
-    
+
     try {
       await axios.delete('/api/history');
       setHistory([]);
@@ -102,11 +108,24 @@ const History = () => {
     }).format(date);
   };
 
+  // Helper to safely get song properties regardless of structure
+  const getSongProperty = (historyItem, property) => {
+    if (!historyItem) return '';
+
+    // Check if songId is populated as an object
+    if (historyItem.songId && typeof historyItem.songId === 'object') {
+      return historyItem.songId[property] || '';
+    }
+
+    // Fallback in case the song data couldn't be populated
+    return '';
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 pb-32">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Playback History</h1>
-        
+
         {history.length > 0 && (
           <button
             onClick={handleClearHistory}
@@ -116,7 +135,7 @@ const History = () => {
           </button>
         )}
       </div>
-      
+
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -159,16 +178,17 @@ const History = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <button
-                        onClick={() => handlePlaySong(item.songId)}
-                        className={`mr-3 p-2 rounded-full ${selectedSongId === item.songId._id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        onClick={() => item.songId && handlePlaySong(item.songId)}
+                        className={`mr-3 p-2 rounded-full ${selectedSongId === (item.songId && item.songId._id) ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        disabled={!item.songId}
                       >
                         <FaPlay />
                       </button>
-                      <span className="font-medium">{item.songId.title}</span>
+                      <span className="font-medium">{getSongProperty(item, 'title')}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                    {item.songId.artist}
+                    {getSongProperty(item, 'artist')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-600">
                     {formatDate(item.playedAt)}
@@ -188,7 +208,7 @@ const History = () => {
           </table>
         </div>
       )}
-      
+
       {currentSong && (
         <MusicPlayer
           currentSong={currentSong}

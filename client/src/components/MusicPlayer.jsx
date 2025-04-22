@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaForward, FaBackward, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import axios from 'axios';
 
 const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
   const audioRef = useRef(null);
@@ -10,6 +11,7 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(0.7);
   const [audioError, setAudioError] = useState(null);
+  const [playRecorded, setPlayRecorded] = useState(false);
 
   // Determine the correct audio source based on available properties
   const getAudioSource = (song) => {
@@ -34,6 +36,16 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
     return `/songs/${song.title.toLowerCase().replace(/\s+/g, '-')}.mp3`;
   };
 
+  // Record song play in history
+  const recordSongPlay = async (songId) => {
+    try {
+      await axios.post(`/songs/${songId}/play`);
+      setPlayRecorded(true);
+    } catch (error) {
+      console.error('Error recording song play:', error);
+    }
+  };
+
   useEffect(() => {
     if (currentSong) {
       console.log('Current song data:', currentSong);
@@ -47,6 +59,9 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
         // Reset error state
         setAudioError(null);
 
+        // Reset play recorded flag
+        setPlayRecorded(false);
+
         // If a new song is loaded, play it automatically
         const playPromise = audioRef.current.play();
 
@@ -54,6 +69,8 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
           playPromise
             .then(() => {
               setIsPlaying(true);
+              // Record the play in history when starting a new song
+              recordSongPlay(currentSong._id);
             })
             .catch((error) => {
               console.error('Auto-play prevented:', error);
@@ -74,13 +91,19 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
   const handlePlayPause = () => {
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
       audioRef.current.play().catch(err => {
         console.error("Error playing audio:", err);
         setAudioError("Could not play this song. Please try another.");
       });
+      setIsPlaying(true);
+
+      // Record the play if it's the first time playing this song instance
+      if (!playRecorded && currentSong) {
+        recordSongPlay(currentSong._id);
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
@@ -127,6 +150,12 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
     console.error('Audio error:', e);
     setAudioError("Could not load this song. The audio file may be missing or corrupted.");
     setIsPlaying(false);
+  };
+
+  const handleSongEnd = () => {
+    // Reset play recorded flag before moving to next song
+    setPlayRecorded(false);
+    onNextSong();
   };
 
   if (!currentSong) {
@@ -207,7 +236,7 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
-        onEnded={onNextSong}
+        onEnded={handleSongEnd}
         onError={handleAudioError}
       />
     </div>

@@ -87,6 +87,26 @@ const playlistSchema = new mongoose.Schema({
 
 const Playlist = mongoose.model('Playlist', playlistSchema);
 
+// PlaybackHistory Schema
+const playbackHistorySchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  songId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Song',
+    required: true
+  },
+  playedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const PlaybackHistory = mongoose.model('PlaybackHistory', playbackHistorySchema);
+
 // Add or initialize songs in the database
 const initializeSongs = async () => {
   try {
@@ -409,18 +429,119 @@ app.post('/songs/:id/like', async (req, res) => {
 // Record song play
 app.post('/songs/:id/play', async (req, res) => {
   try {
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
     const song = await Song.findByIdAndUpdate(
       req.params.id,
       { $inc: { playCount: 1 } },
       { new: true }
     );
+
     if (!song) {
       return res.status(404).json({ error: 'Song not found' });
     }
+
+    // Record this play in playback history
+    await PlaybackHistory.create({
+      userId,
+      songId: song._id
+    });
+
     res.json({ success: true, playCount: song.playCount });
   } catch (error) {
     console.error('Error recording play:', error);
     res.status(500).json({ error: 'Failed to record play' });
+  }
+});
+
+// Get user's playback history
+app.get('/api/history', async (req, res) => {
+  try {
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // Find history for this user and populate song details
+    const history = await PlaybackHistory.find({ userId })
+      .populate('songId')
+      .sort({ playedAt: -1 }) // Sort by most recent first
+      .limit(100); // Limit to 100 most recent entries
+
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching playback history:', error);
+    res.status(500).json({ error: 'Failed to fetch playback history' });
+  }
+});
+
+// Delete a single history entry
+app.delete('/api/history/:id', async (req, res) => {
+  try {
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // Find and delete the history entry
+    const historyEntry = await PlaybackHistory.findOneAndDelete({
+      _id: req.params.id,
+      userId: userId
+    });
+
+    if (!historyEntry) {
+      return res.status(404).json({ error: 'History entry not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting history entry:', error);
+    res.status(500).json({ error: 'Failed to delete history entry' });
+  }
+});
+
+// Clear all history for a user
+app.delete('/api/history', async (req, res) => {
+  try {
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // Delete all history entries for this user
+    await PlaybackHistory.deleteMany({ userId });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing playback history:', error);
+    res.status(500).json({ error: 'Failed to clear playback history' });
   }
 });
 
