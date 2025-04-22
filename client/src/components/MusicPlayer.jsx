@@ -9,21 +9,57 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(0.7);
+  const [audioError, setAudioError] = useState(null);
+
+  // Determine the correct audio source based on available properties
+  const getAudioSource = (song) => {
+    if (!song) return '';
+
+    // If song has audioUrl that starts with '/', use it directly
+    if (song.audioUrl && song.audioUrl.startsWith('/')) {
+      return song.audioUrl;
+    }
+
+    // If song has audioUrl but doesn't start with '/', add '/songs/' prefix
+    if (song.audioUrl) {
+      return `/songs/${song.audioUrl.replace('/songs/', '')}`;
+    }
+
+    // Fallback to audioFile if available
+    if (song.audioFile) {
+      return `/songs/${song.audioFile}`;
+    }
+
+    // Ultimate fallback - try to get filename from song title
+    return `/songs/${song.title.toLowerCase().replace(/\s+/g, '-')}.mp3`;
+  };
 
   useEffect(() => {
     if (currentSong) {
-      // If a new song is loaded, play it automatically
-      const playPromise = audioRef.current.play();
+      console.log('Current song data:', currentSong);
+      const audioSrc = getAudioSource(currentSong);
+      console.log('Using audio source:', audioSrc);
 
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch((error) => {
-            console.error('Auto-play prevented:', error);
-            setIsPlaying(false);
-          });
+      // Set the audio source
+      if (audioRef.current) {
+        audioRef.current.src = audioSrc;
+
+        // Reset error state
+        setAudioError(null);
+
+        // If a new song is loaded, play it automatically
+        const playPromise = audioRef.current.play();
+
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch((error) => {
+              console.error('Auto-play prevented:', error);
+              setIsPlaying(false);
+            });
+        }
       }
     }
   }, [currentSong]);
@@ -39,7 +75,10 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(err => {
+        console.error("Error playing audio:", err);
+        setAudioError("Could not play this song. Please try another.");
+      });
     }
     setIsPlaying(!isPlaying);
   };
@@ -84,6 +123,12 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  const handleAudioError = (e) => {
+    console.error('Audio error:', e);
+    setAudioError("Could not load this song. The audio file may be missing or corrupted.");
+    setIsPlaying(false);
+  };
+
   if (!currentSong) {
     return null;
   }
@@ -91,6 +136,12 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 shadow-lg">
       <div className="container mx-auto">
+        {audioError && (
+          <div className="bg-red-500 text-white p-2 mb-2 rounded text-sm text-center">
+            {audioError}
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center mb-3 md:mb-0">
             <div className="mr-4">
@@ -154,10 +205,10 @@ const MusicPlayer = ({ currentSong, onNextSong, onPrevSong }) => {
 
       <audio
         ref={audioRef}
-        src={`/songs/${currentSong.audioFile}`}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={onNextSong}
+        onError={handleAudioError}
       />
     </div>
   );

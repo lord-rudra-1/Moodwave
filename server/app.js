@@ -47,7 +47,8 @@ const songSchema = new mongoose.Schema({
   mood: { type: String, enum: ['Happy', 'Sad', 'Energetic', 'Calm', 'Romantic', 'Melancholic', 'Chill'] },
   coverImage: { type: String },
   audioFile: { type: String, required: true },
-  playCount: { type: Number, default: 0 }
+  playCount: { type: Number, default: 0 },
+  moodTags: { type: [String] }
 }, {
   timestamps: true
 });
@@ -179,7 +180,13 @@ app.get('/api/songs', async (req, res) => {
 app.get('/api/songs/mood/:mood', async (req, res) => {
   try {
     const { mood } = req.params;
-    const songs = await Song.find({ mood });
+    // Search for songs with either mood field or moodTags array containing the mood
+    const songs = await Song.find({
+      $or: [
+        { mood: mood },
+        { moodTags: mood }
+      ]
+    });
     res.json(songs);
   } catch (error) {
     console.error('Error fetching songs by mood:', error);
