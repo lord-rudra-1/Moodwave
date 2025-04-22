@@ -1,30 +1,15 @@
 import { useState } from 'react';
-import { FaPlay, FaPause, FaHeart, FaRegHeart, FaPlus } from 'react-icons/fa';
+import { FaPlay, FaPause, FaPlus, FaComment } from 'react-icons/fa';
 import axios from 'axios';
 import useAuth from '../utils/useAuth';
 import SongDialog from './SongDialog';
+import CommentsDialog from './CommentsDialog';
+import RatingStars from './RatingStars';
 
 const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
   const { isAuthenticated } = useAuth();
-  const [isLiked, setIsLiked] = useState(song.isLiked || false);
   const [showPlaylistDialog, setShowPlaylistDialog] = useState(false);
-
-  const handleLikeToggle = async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      if (isLiked) {
-        await axios.delete(`/api/songs/${song._id}/like`);
-        setIsLiked(false);
-      } else {
-        await axios.post(`/api/songs/${song._id}/like`);
-        setIsLiked(true);
-      }
-      if (refreshSongs) refreshSongs();
-    } catch (error) {
-      console.error('Error toggling like:', error);
-    }
-  };
+  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
 
   const handlePlaybackRecord = async () => {
     if (!isAuthenticated) return;
@@ -43,6 +28,10 @@ const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
 
   const handleAddToPlaylist = () => {
     setShowPlaylistDialog(true);
+  };
+
+  const handleOpenComments = () => {
+    setShowCommentsDialog(true);
   };
 
   return (
@@ -75,16 +64,16 @@ const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
         <h3 className="font-semibold text-lg truncate">{song.title}</h3>
         <p className="text-gray-600 text-sm">{song.artist}</p>
 
+        {/* Star Rating */}
+        <RatingStars songId={song._id} />
+
         <div className="flex justify-between items-center mt-3">
           <button
-            onClick={handleLikeToggle}
-            className="text-gray-600 hover:text-red-500 transition"
+            onClick={handleOpenComments}
+            className="text-gray-600 hover:text-blue-500 transition"
+            title="Comments"
           >
-            {isLiked ? (
-              <FaHeart className="text-red-500" />
-            ) : (
-              <FaRegHeart />
-            )}
+            <FaComment />
           </button>
 
           <button
@@ -106,6 +95,14 @@ const SongCard = ({ song, onPlay, isPlaying, refreshSongs }) => {
         isOpen={showPlaylistDialog}
         onClose={() => setShowPlaylistDialog(false)}
         songId={song._id}
+      />
+
+      {/* Comments Dialog */}
+      <CommentsDialog
+        isOpen={showCommentsDialog}
+        onClose={() => setShowCommentsDialog(false)}
+        songId={song._id}
+        songTitle={song.title}
       />
     </div>
   );

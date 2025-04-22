@@ -55,6 +55,31 @@ const songSchema = new mongoose.Schema({
 
 const Song = mongoose.model('Song', songSchema);
 
+// Comment Schema
+const commentSchema = new mongoose.Schema({
+  songId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Song',
+    required: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  comment: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const Comment = mongoose.model('Comment', commentSchema);
+
 // Playlist Schema
 const playlistSchema = new mongoose.Schema({
   name: {
@@ -106,6 +131,35 @@ const playbackHistorySchema = new mongoose.Schema({
 });
 
 const PlaybackHistory = mongoose.model('PlaybackHistory', playbackHistorySchema);
+
+// Rating Schema
+const ratingSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  songId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Song',
+    required: true
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  ratedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Compound index to ensure one rating per user per song
+ratingSchema.index({ userId: 1, songId: 1 }, { unique: true });
+
+const Rating = mongoose.model('Rating', ratingSchema);
 
 // Add or initialize songs in the database
 const initializeSongs = async () => {
@@ -695,6 +749,232 @@ app.delete('/api/playlists/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting playlist:', error);
     res.status(500).json({ error: 'Failed to delete playlist' });
+  }
+});
+
+// Comment routes
+
+// Get comments for a song
+app.get('/api/songs/:id/comments', async (req, res) => {
+  try {
+    const comments = await Comment.find({ songId: req.params.id })
+      .populate('userId', 'username') // Only return the username field from User
+      .sort({ createdAt: -1 }); // Sort by most recent first
+
+    res.json(comments);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+// Add a comment to a song
+app.post('/api/songs/:id/comments', async (req, res) => {
+  try {
+    const { comment } = req.body;
+
+    // Validate comment
+    if (!comment || comment.trim() === '') {
+      return res.status(400).json({ error: 'Comment cannot be empty' });
+    }
+
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // Verify the song exists
+    const song = await Song.findById(req.params.id);
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    // Create the comment
+    const newComment = await Comment.create({
+      songId: req.params.id,
+      userId,
+      comment
+    });
+
+    // Return the comment with user info
+    const populatedComment = await Comment.findById(newComment._id)
+      .populate('userId', 'username');
+
+    res.status(201).json(populatedComment);
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+// Delete a comment
+app.delete('/api/comments/:id', async (req, res) => {
+  try {
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // Find the comment
+    const comment = await Comment.findById(req.params.id);
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Check if this user is the owner of the comment
+    if (comment.userId.toString() !== userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
+    }
+
+    // Delete the comment
+    await Comment.findByIdAndDelete(req.params.id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
+// Rating routes
+
+// Get average rating for a song
+app.get('/api/songs/:id/rating', async (req, res) => {
+  try {
+    const ratings = await Rating.find({ songId: req.params.id });
+
+    if (ratings.length === 0) {
+      return res.json({ averageRating: 0, totalRatings: 0 });
+    }
+
+    const sum = ratings.reduce((acc, curr) => acc + curr.rating, 0);
+    const averageRating = sum / ratings.length;
+
+    res.json({
+      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
+      totalRatings: ratings.length
+    });
+  } catch (error) {
+    console.error('Error fetching song rating:', error);
+    res.status(500).json({ error: 'Failed to fetch song rating' });
+  }
+});
+
+// Get user's rating for a song
+app.get('/api/songs/:id/myrating', async (req, res) => {
+  try {
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    const rating = await Rating.findOne({
+      songId: req.params.id,
+      userId
+    });
+
+    if (!rating) {
+      return res.json({ rating: 0 });
+    }
+
+    res.json({ rating: rating.rating });
+  } catch (error) {
+    console.error('Error fetching user rating:', error);
+    res.status(500).json({ error: 'Failed to fetch user rating' });
+  }
+});
+
+// Rate a song
+app.post('/api/songs/:id/rate', async (req, res) => {
+  try {
+    const { rating } = req.body;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    // Get the user ID from token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authorized, no token' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // Verify the song exists
+    const song = await Song.findById(req.params.id);
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    // Check if user already rated this song
+    const existingRating = await Rating.findOne({
+      songId: req.params.id,
+      userId
+    });
+
+    if (existingRating) {
+      // Update existing rating
+      existingRating.rating = rating;
+      existingRating.ratedAt = Date.now();
+      await existingRating.save();
+
+      // Get updated average
+      const allRatings = await Rating.find({ songId: req.params.id });
+      const sum = allRatings.reduce((acc, curr) => acc + curr.rating, 0);
+      const averageRating = sum / allRatings.length;
+
+      return res.json({
+        success: true,
+        message: 'Rating updated successfully',
+        userRating: rating,
+        averageRating: Math.round(averageRating * 10) / 10,
+        totalRatings: allRatings.length
+      });
+    }
+
+    // Create new rating
+    await Rating.create({
+      songId: req.params.id,
+      userId,
+      rating
+    });
+
+    // Get updated average
+    const allRatings = await Rating.find({ songId: req.params.id });
+    const sum = allRatings.reduce((acc, curr) => acc + curr.rating, 0);
+    const averageRating = sum / allRatings.length;
+
+    res.status(201).json({
+      success: true,
+      message: 'Rating added successfully',
+      userRating: rating,
+      averageRating: Math.round(averageRating * 10) / 10,
+      totalRatings: allRatings.length
+    });
+  } catch (error) {
+    console.error('Error rating song:', error);
+    res.status(500).json({ error: 'Failed to rate song' });
   }
 });
 
